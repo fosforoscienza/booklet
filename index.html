@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opuscolo — da PDF A4 a libretto fronte/retro</title>
+<style>
+  :root {
+    --bg: #f4f4f2;
+    --card: #ffffff;
+    --ink: #1c1c1a;
+    --muted: #6b6b66;
+    --line: #dcdcd6;
+    --accent: #b5451b;
+    --accent-soft: #fbeee8;
+    --ok: #2c6e49;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --card: #1f1f24;
+      --ink: #ececea;
+      --muted: #9a9a95;
+      --line: #34343b;
+      --accent: #e2703a;
+      --accent-soft: #2c2119;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px 64px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  #drop {
+    border: 2px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 44px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    background: var(--card);
+  }
+  #drop:hover, #drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  #drop strong { display: block; font-size: 17px; margin-bottom: 4px; }
+  #drop span { color: var(--muted); font-size: 13.5px; }
+  .file-line {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 8px;
+    background: var(--accent-soft); border: 1px solid var(--line);
+    margin-bottom: 18px; font-size: 14px;
+  }
+  .file-line b { font-weight: 600; }
+  .file-line button {
+    margin-left: auto; background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0;
+  }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  label.field { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  select, input[type=number] {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 7px;
+    background: var(--bg); color: var(--ink); font-family: inherit;
+  }
+  .checks { margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
+  .check { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; }
+  .check input { margin-top: 3px; }
+  .hint { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  button.primary {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 600;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; cursor: pointer; font-family: inherit;
+  }
+  button.primary:disabled { opacity: .45; cursor: default; }
+  .dl {
+    display: inline-block; padding: 11px 18px; font-size: 14px; font-weight: 600;
+    background: var(--accent); color: #fff; border-radius: 8px;
+    text-decoration: none; margin: 0 10px 10px 0;
+  }
+  .status { margin-top: 14px; font-size: 14px; color: var(--muted); min-height: 20px; }
+  .status.err { color: var(--accent); }
+  progress { width: 100%; height: 6px; margin-top: 12px; }
+  .summary { font-size: 14px; margin: 0 0 16px; }
+  .summary b { font-weight: 600; }
+  /* Schema dei fogli: mostra quale pagina finisce dove. */
+  .sheets { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+  .sheet { text-align: center; }
+  .sheet .pair { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .sheet .pg {
+    width: 40px; height: 54px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; background: var(--card); color: var(--ink);
+  }
+  .sheet .pg + .pg { border-left: 1px dashed var(--line); }
+  .sheet .pg.blank { color: var(--muted); background: repeating-linear-gradient(
+      45deg, transparent, transparent 4px, var(--line) 4px, var(--line) 5px); }
+  .sheet .cap { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  ol.steps { margin: 0; padding-left: 20px; font-size: 14px; color: var(--muted); }
+  ol.steps li { margin-bottom: 7px; }
+  ol.steps b { color: var(--ink); font-weight: 600; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Opuscolo</h1>
+    <p class="sub">Trasforma un PDF di pagine singole in un libretto da stampare fronte/retro e piegare.
+       Tutto in locale sul tuo Mac, nessun caricamento su internet, nessun limite di pagine.</p>
+  </header>
+
+  <div class="card">
+    <div id="drop">
+      <strong>Trascina qui il PDF</strong>
+      <span>oppure clicca per sceglierlo</span>
+    </div>
+    <input type="file" id="file" accept="application/pdf,.pdf" class="hidden">
+    <div id="fileLine" class="file-line hidden" style="margin: 18px 0 0;">
+      <b id="fileName"></b>
+      <span id="fileSize" style="color: var(--muted)"></span>
+      <button type="button" id="clearFile">rimuovi</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Impostazioni</h2>
+    <div class="grid">
+      <div>
+        <label class="field" for="paper">Formato del foglio da stampare</label>
+        <select id="paper">
+          <option value="a4">A4 orizzontale (due A5 affiancate)</option>
+          <option value="auto" selected>Automatico (due pagine a grandezza originale)</option>
+          <option value="a3">A3 orizzontale (due A4 affiancate)</option>
+          <option value="letter">Letter orizzontale</option>
+          <option value="legal">Legal orizzontale</option>
+          <option value="tabloid">Tabloid orizzontale</option>
+        </select>
+        <div class="hint">In automatico il foglio è largo il doppio della pagina originale:
+          scegli un formato fisso se la tua stampante non lo accetta.</div>
+      </div>
+      <div>
+        <label class="field" for="flip">Fronte/retro della stampante</label>
+        <select id="flip">
+          <option value="short" selected>Ribalta sul lato corto (consigliato)</option>
+          <option value="long">Ribalta sul lato lungo</option>
+        </select>
+        <div class="hint">Se le pagine dispari escono capovolte rispetto alle pari, cambia questa voce.</div>
+      </div>
+      <div>
+        <label class="field" for="binding">Verso di lettura</label>
+        <select id="binding">
+          <option value="left" selected>Da sinistra a destra</option>
+          <option value="right">Da destra a sinistra</option>
+        </select>
+      </div>
+      <div>
+        <label class="field" for="output">File prodotti</label>
+        <select id="output">
+          <option value="single" selected>Un file unico (stampa fronte/retro)</option>
+          <option value="split">Due file: fronti e retri (stampa manuale)</option>
+        </select>
+      </div>
+      <div>
+        <label class="field" for="margin">Margine esterno (mm)</label>
+        <input type="number" id="margin" value="0" min="0" max="40" step="1">
+      </div>
+      <div>
+        <label class="field" for="gutter">Spazio sulla piega (mm)</label>
+        <input type="number" id="gutter" value="0" min="0" max="60" step="1">
+      </div>
+      <div>
+        <label class="field" for="from">Dalla pagina</label>
+        <input type="number" id="from" min="1" step="1" placeholder="prima">
+      </div>
+      <div>
+        <label class="field" for="to">Alla pagina</label>
+        <input type="number" id="to" min="1" step="1" placeholder="ultima">
+      </div>
+    </div>
+    <div class="checks">
+      <label class="check">
+        <input type="checkbox" id="foldLine">
+        <span>Traccia una linea tratteggiata sulla piega centrale</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="primary" id="go" disabled>Crea opuscolo</button>
+    <progress id="bar" class="hidden" value="0" max="100"></progress>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card hidden" id="result">
+    <h2>Pronto</h2>
+    <p class="summary" id="summary"></p>
+    <div id="links"></div>
+    <ol class="steps" id="steps"></ol>
+    <div class="sheets" id="sheets"></div>
+  </div>
+
+</div>
+
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="booklet.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var el = function (id) { return document.getElementById(id); };
+  var drop = el('drop'), fileInput = el('file'), go = el('go');
+  var statusEl = el('status'), bar = el('bar'), result = el('result');
+  var chosen = null;
+  var urls = []; // link temporanei da revocare a ogni nuova conversione
+
+  function setStatus(msg, isError) {
+    statusEl.textContent = msg || '';
+    statusEl.className = 'status' + (isError ? ' err' : '');
+  }
+
+  function pickFile(f) {
+    if (!f) return;
+    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') {
+      setStatus('Serve un file PDF.', true);
+      return;
+    }
+    chosen = f;
+    el('fileName').textContent = f.name;
+    el('fileSize').textContent = '· ' + (f.size >= 1048576
+      ? (f.size / 1048576).toFixed(1) + ' MB'
+      : Math.max(1, Math.round(f.size / 1024)) + ' KB');
+    el('fileLine').classList.remove('hidden');
+    go.disabled = false;
+    setStatus('');
+    result.classList.add('hidden');
+  }
+
+  drop.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () { pickFile(fileInput.files[0]); });
+  el('clearFile').addEventListener('click', function () {
+    chosen = null;
+    fileInput.value = '';
+    el('fileLine').classList.add('hidden');
+    go.disabled = true;
+    result.classList.add('hidden');
+  });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer.files.length) pickFile(e.dataTransfer.files[0]);
+  });
+  // Senza questo il browser aprirebbe il PDF al posto della pagina.
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+
+  function readFile(f) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(new Uint8Array(r.result)); };
+      r.onerror = function () { reject(new Error('Impossibile leggere il file.')); };
+      r.readAsArrayBuffer(f);
+    });
+  }
+
+  function download(bytes, name, label) {
+    var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    urls.push(url);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.className = 'dl';
+    a.textContent = label;
+    el('links').appendChild(a);
+  }
+
+  function drawSheets(order) {
+    var box = el('sheets');
+    box.innerHTML = '';
+    var shown = order.slice(0, 8);
+    shown.forEach(function (face) {
+      var d = document.createElement('div');
+      d.className = 'sheet';
+      var pair = document.createElement('div');
+      pair.className = 'pair';
+      face.pages.forEach(function (n) {
+        var c = document.createElement('div');
+        c.className = 'pg' + (n ? '' : ' blank');
+        c.textContent = n || '';
+        pair.appendChild(c);
+      });
+      var cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.textContent = 'foglio ' + (face.sheet + 1) + ' · ' +
+        (face.side === 'front' ? 'fronte' : 'retro');
+      d.appendChild(pair);
+      d.appendChild(cap);
+      box.appendChild(d);
+    });
+    if (order.length > shown.length) {
+      var more = document.createElement('div');
+      more.className = 'sheet';
+      more.style.alignSelf = 'center';
+      more.innerHTML = '<div class="cap">+ altre ' + (order.length - shown.length) + ' facciate</div>';
+      box.appendChild(more);
+    }
+  }
+
+  function instructions(split, flip) {
+    var s = el('steps');
+    s.innerHTML = '';
+    var list = split
+      ? ['Stampa il file <b>fronti</b> su carta bianca.',
+         'Rimetti i fogli stampati nel cassetto, girati, senza cambiarne l’ordine.',
+         'Stampa sopra il file <b>retri</b>.',
+         'Piega la pila a metà e graffa sulla piega.']
+      : ['Apri il PDF in Anteprima e premi ⌘P.',
+         'Attiva <b>Fronte-retro</b> e scegli ' +
+           (flip === 'long' ? 'la rilegatura sul <b>lato lungo</b>.' : 'la rilegatura sul <b>lato corto</b>.'),
+         'Imposta la scala su <b>100%</b> (non "adatta alla pagina"), orientamento <b>orizzontale</b>.',
+         'Stampa, piega la pila a metà e graffa sulla piega.'];
+    list.forEach(function (t) {
+      var li = document.createElement('li');
+      li.innerHTML = t;
+      s.appendChild(li);
+    });
+  }
+
+  go.addEventListener('click', async function () {
+    if (!chosen) return;
+    go.disabled = true;
+    result.classList.add('hidden');
+    el('links').innerHTML = '';
+    urls.forEach(URL.revokeObjectURL);
+    urls = [];
+    bar.classList.remove('hidden');
+    bar.value = 0;
+    setStatus('Lettura del PDF…');
+
+    var num = function (id) {
+      var v = parseFloat(el(id).value);
+      return isNaN(v) ? undefined : v;
+    };
+
+    try {
+      var bytes = await readFile(chosen);
+      var split = el('output').value === 'split';
+      var flip = el('flip').value;
+
+      var res = await Booklet.convert(bytes, {
+        paper: el('paper').value,
+        binding: el('binding').value,
+        flip: flip,
+        margin: num('margin') || 0,
+        gutter: num('gutter') || 0,
+        foldLine: el('foldLine').checked,
+        split: split,
+        from: num('from'),
+        to: num('to'),
+        onProgress: function (done, total) {
+          bar.value = Math.round((done / total) * 100);
+          setStatus('Composizione facciata ' + done + ' di ' + total + '…');
+        },
+        // Restituisce il controllo al browser: la barra avanza davvero
+        // anche su documenti di centinaia di pagine.
+        yield: function () {
+          return new Promise(function (r) { setTimeout(r, 0); });
+        },
+      });
+
+      var base = chosen.name.replace(/\.pdf$/i, '');
+      if (split) {
+        download(res.front, base + '-fronti.pdf', 'Scarica i fronti');
+        download(res.back, base + '-retri.pdf', 'Scarica i retri');
+      } else {
+        download(res.front, base + '-opuscolo.pdf', 'Scarica l’opuscolo');
+      }
+
+      el('summary').innerHTML =
+        '<b>' + res.pages + '</b> pagine → <b>' + res.sheets + '</b> fogli da stampare fronte/retro' +
+        (res.padded ? ', con <b>' + res.padded + '</b> pagin' + (res.padded === 1 ? 'a bianca aggiunta' : 'e bianche aggiunte') +
+          ' in fondo per arrivare a un multiplo di 4' : '') +
+        '. Foglio ' + Math.round(res.sheetSize.width / Booklet.MM) + '×' +
+        Math.round(res.sheetSize.height / Booklet.MM) + ' mm.';
+
+      instructions(split, flip);
+      drawSheets(Booklet.sheetOrder(res.pages));
+      result.classList.remove('hidden');
+      setStatus('');
+      bar.classList.add('hidden');
+    } catch (err) {
+      console.error(err);
+      bar.classList.add('hidden');
+      var msg = String(err && err.message || err);
+      if (/password|encrypt/i.test(msg)) {
+        msg = 'Il PDF è protetto da password: rimuovila (Anteprima › Esporta) e riprova.';
+      }
+      setStatus('Errore: ' + msg, true);
+    } finally {
+      go.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
