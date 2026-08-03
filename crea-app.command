@@ -24,6 +24,10 @@ mkdir -p "$APP/Contents/MacOS" "$RES"
 
 cp "$DIR/index.html" "$DIR/booklet.js" "$RES/"
 cp -R "$DIR/vendor" "$RES/vendor"
+# Il logo è facoltativo: senza, in fondo all'app resta la sola scritta.
+if [ -d "$DIR/logo" ]; then
+  cp -R "$DIR/logo" "$RES/logo"
+fi
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

@@ -55,8 +55,16 @@ gira nel browser, e l'unica parte legata al Mac è `crea-app.command`.
 Non serve installare niente, non serve internet (l'app non fa nessuna richiesta
 di rete: puoi provarla con il Wi-Fi spento) e il PDF resta sul computer.
 
-Se modifichi `index.html` o `booklet.js`, rigenera il file singolo con
+Se modifichi `index.html`, `booklet.js` o il logo, rigenera il file singolo con
 `node crea-file-unico.js`.
+
+## Crediti
+
+In fondo alla pagina, sotto una linea sottile, ci sono i crediti a **Brown
+Enterprises srls** con il logo: quello nero sullo sfondo chiaro, quello bianco
+quando il Mac è in modalità scura. I due PNG vanno messi nella cartella `logo/`,
+che spiega nomi e misure nel suo `README.md`. Finché non ci sono, in fondo resta
+la sola scritta.
 
 ## Come stampare
 
@@ -115,5 +123,6 @@ nell'anteprima.
 | `crea-app.command` | Genera `Opuscolo.app` (solo macOS) |
 | `crea-file-unico.js` | Rigenera `Opuscolo.html` |
 | `icona.png` | Icona dell'app |
+| `logo/` | Logo di Brown Enterprises mostrato in fondo alla pagina — vedi `logo/README.md` |
 
 Nessuna installazione, nessun `npm install`: le librerie sono già incluse.

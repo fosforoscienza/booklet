@@ -137,6 +137,13 @@
     background: var(--bg); color: var(--ink); border: 1px solid var(--line);
     border-radius: 7px; cursor: pointer;
   }
+  footer {
+    margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--line);
+    text-align: center; color: var(--muted); font-size: 12.5px;
+  }
+  footer img { display: block; height: 30px; width: auto; margin: 0 auto 11px; }
+  footer p { margin: 0; }
+  footer b { color: var(--ink); font-weight: 600; }
   ol.steps { margin: 0; padding-left: 20px; font-size: 14px; color: var(--muted); }
   ol.steps li { margin-bottom: 7px; }
   ol.steps b { color: var(--ink); font-weight: 600; }
@@ -251,6 +258,17 @@
     <div id="links"></div>
     <ol class="steps" id="steps"></ol>
   </div>
+
+  <footer>
+    <!-- Il logo sta in logo/: quello bianco per lo sfondo scuro, quello nero
+         per lo sfondo chiaro. Se i file mancano resta solo la scritta. -->
+    <picture id="marchio">
+      <source srcset="logo/brown-enterprises-bianco.png" media="(prefers-color-scheme: dark)">
+      <img src="logo/brown-enterprises-nero.png" alt="Brown Enterprises srls"
+           onerror="document.getElementById('marchio').classList.add('hidden')">
+    </picture>
+    <p>Un progetto di <b>Brown Enterprises srls</b></p>
+  </footer>
 
 </div>
 
