@@ -16,11 +16,11 @@ const read = (p) => fs.readFileSync(path.join(dir, p), 'utf8');
 // Una sequenza "</script" dentro il codice chiuderebbe il tag in anticipo.
 const safe = (js) => js.replace(/<\/script/gi, '<\\/script').replace(/\/\/# sourceMappingURL=\S+/g, '').trim();
 
-const html = read('index.html')
-  .replace('<script src="vendor/pdf-lib.min.js"></script>',
-    () => '<script>' + safe(read('vendor/pdf-lib.min.js')) + '</script>')
-  .replace('<script src="booklet.js"></script>',
-    () => '<script>' + safe(read('booklet.js')) + '</script>');
+// Ogni <script src="..."> diventa il contenuto del file, nello stesso ordine.
+const html = read('index.html').replace(
+  /<script src="([^"]+)"><\/script>/g,
+  (_, src) => '<script>' + safe(read(src)) + '</script>'
+);
 
 if (html.includes('<script src=')) {
   console.error('Errore: è rimasto uno script esterno, il file non sarebbe autonomo.');

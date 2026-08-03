@@ -27,10 +27,26 @@ cartella.
 Poi: trascina il PDF nell'app, regola le impostazioni se serve, premi **Crea
 opuscolo** e scarica il risultato.
 
+## L'anteprima
+
+Appena scegli il PDF compare l'anteprima: ogni facciata è disegnata in scala,
+con le miniature delle pagine nella posizione in cui verranno stampate e il
+numero di pagina sotto ciascuna. Si vede a colpo d'occhio se l'ordine è quello
+giusto, quanto margine resta e dove cadono le pagine bianche di riempimento.
+
+Si aggiorna da sola a ogni cambio di impostazione: cambiando formato del foglio,
+margine, spazio sulla piega o verso di lettura, il foglio cambia sotto gli occhi.
+Con **Ribalta sul lato lungo** i retri sono mostrati capovolti, perché è così che
+escono dalla stampante.
+
+All'inizio vengono mostrate le prime otto facciate: il pulsante in fondo apre
+tutte le altre. Le miniature vengono disegnate solo quando servono, quindi anche
+un documento di centinaia di pagine si apre subito.
+
 ## Usarla su un altro computer
 
-Nella cartella c'è **`Opuscolo.html`**: la stessa app, ma con libreria e motore
-già incorporati in un unico file da 537 KB. Non ha bisogno di nient'altro.
+Nella cartella c'è **`Opuscolo.html`**: la stessa app, ma con librerie e motore
+già incorporati in un unico file da 2 MB. Non ha bisogno di nient'altro.
 
 Copialo dove vuoi — chiavetta USB, AirDrop, email, Dropbox — e aprilo con un
 doppio clic. Funziona anche **su Windows e Linux**: è una normale pagina che
@@ -68,6 +84,7 @@ riordinarla, poi stampi i retri.
 | **File prodotti** | Un file unico, oppure due file separati per la stampa manuale. |
 | **Margine esterno** | Bordo bianco lungo i lati esterni del foglio, in millimetri. Utile se la stampante non arriva a filo. |
 | **Spazio sulla piega** | Bianco aggiunto al centro, dove il foglio si piega. Utile sui libretti spessi, dove le pagine interne "scappano" verso l'esterno. |
+| **Tutte le pagine** | Spuntata di suo: converte il documento intero senza dover scrivere niente. Togliendola si attivano i due campi qui sotto. |
 | **Dalla / alla pagina** | Converte solo una parte del documento. |
 | **Linea di piega** | Traccia un tratteggio grigio al centro, come guida per piegare. |
 
@@ -82,18 +99,21 @@ dentro l'altro e si piegano insieme. Per un documento di 8 pagine i fogli sono:
 | 2 | 6 \| 3 | 4 \| 5 |
 
 Il numero di pagine deve essere un multiplo di 4: se non lo è, vengono aggiunte
-fino a 3 pagine bianche in fondo. L'app te lo dice sempre nel riepilogo.
+fino a 3 pagine bianche in fondo, quante ne servono per arrivare al primo
+multiplo di 4. L'app te lo dice sempre nel riepilogo e te le mostra tratteggiate
+nell'anteprima.
 
 ## File
 
 | File | Contenuto |
 | --- | --- |
 | `Opuscolo.html` | **File unico autonomo**, da portare su altri computer |
-| `index.html` | Interfaccia dell'app |
+| `index.html` | Interfaccia dell'app e anteprima |
 | `booklet.js` | Motore di imposizione (calcolo dell'ordine e composizione dei fogli) |
-| `vendor/pdf-lib.min.js` | [pdf-lib](https://pdf-lib.js.org), libreria PDF (licenza MIT, inclusa in `vendor/`) |
+| `vendor/pdf-lib.min.js` | [pdf-lib](https://pdf-lib.js.org), libreria PDF: compone il libretto (licenza MIT) |
+| `vendor/pdf.min.js`, `vendor/pdf.worker.min.js` | [pdf.js](https://mozilla.github.io/pdf.js/) di Mozilla: disegna le miniature dell'anteprima (licenza Apache 2.0) |
 | `crea-app.command` | Genera `Opuscolo.app` (solo macOS) |
 | `crea-file-unico.js` | Rigenera `Opuscolo.html` |
 | `icona.png` | Icona dell'app |
 
-Nessuna installazione, nessun `npm install`: la libreria è già inclusa.
+Nessuna installazione, nessun `npm install`: le librerie sono già incluse.

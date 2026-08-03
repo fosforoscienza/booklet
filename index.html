@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Opuscolo — da PDF A4 a libretto fronte/retro</title>
+<!-- Icona: l'emoji "libro aperto" disegnata in un SVG incorporato, così resta
+     nel file e funziona anche offline. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f4f4f2;
@@ -83,6 +86,8 @@
   .check { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; }
   .check input { margin-top: 3px; }
   .hint { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .check .hint { display: block; }
+  input:disabled { opacity: .5; } /* i campi "dalla/alla pagina" spenti */
   button.primary {
     width: 100%; padding: 13px; font-size: 15px; font-weight: 600;
     background: var(--accent); color: #fff; border: none;
@@ -99,18 +104,39 @@
   progress { width: 100%; height: 6px; margin-top: 12px; }
   .summary { font-size: 14px; margin: 0 0 16px; }
   .summary b { font-weight: 600; }
-  /* Schema dei fogli: mostra quale pagina finisce dove. */
-  .sheets { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
-  .sheet { text-align: center; }
-  .sheet .pair { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-  .sheet .pg {
-    width: 40px; height: 54px; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; background: var(--card); color: var(--ink);
+  /* Anteprima: ogni facciata è disegnata in scala, con le miniature al loro posto. */
+  .sheets { display: flex; flex-wrap: wrap; gap: 18px; }
+  .face { margin: 0; width: 236px; }
+  .paper {
+    position: relative; height: 0; overflow: hidden; background: #fff;
+    border: 1px solid var(--line); border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .13);
   }
-  .sheet .pg + .pg { border-left: 1px dashed var(--line); }
-  .sheet .pg.blank { color: var(--muted); background: repeating-linear-gradient(
-      45deg, transparent, transparent 4px, var(--line) 4px, var(--line) 5px); }
-  .sheet .cap { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  /* Ruotando questo strato di 180° si ottiene esattamente il retro come esce
+     dalla stampante quando ribalta sul lato lungo. */
+  .paper .content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+  .paper .slot { position: absolute; display: flex; align-items: center; justify-content: center; }
+  .paper .slot img { max-width: 100%; max-height: 100%; display: block; }
+  /* Finché la miniatura non è pronta il posto resta bianco, senza l'icona
+     di immagine rotta. */
+  .paper .slot img:not([src]) { display: none; }
+  .paper .slot.blank {
+    background: repeating-linear-gradient(45deg,
+      transparent, transparent 5px, #e4e4e0 5px, #e4e4e0 6px);
+  }
+  .paper .slot .num {
+    position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; line-height: 1; padding: 2px 5px; border-radius: 3px;
+    background: rgba(0, 0, 0, .55); color: #fff; letter-spacing: .02em;
+  }
+  .paper .slot.blank .num { background: none; color: #8a8a84; }
+  .paper .fold { position: absolute; top: 0; bottom: 0; border-left: 1px dashed rgba(0, 0, 0, .38); }
+  .face figcaption { font-size: 11.5px; color: var(--muted); margin-top: 6px; text-align: center; }
+  button.more {
+    margin-top: 16px; padding: 8px 14px; font-size: 13px; font-family: inherit;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 7px; cursor: pointer;
+  }
   ol.steps { margin: 0; padding-left: 20px; font-size: 14px; color: var(--muted); }
   ol.steps li { margin-bottom: 7px; }
   ol.steps b { color: var(--ink); font-weight: 600; }
@@ -196,10 +222,21 @@
     </div>
     <div class="checks">
       <label class="check">
+        <input type="checkbox" id="allPages" checked>
+        <span>Tutte le pagine del documento<span class="hint" id="allPagesHint"></span></span>
+      </label>
+      <label class="check">
         <input type="checkbox" id="foldLine">
         <span>Traccia una linea tratteggiata sulla piega centrale</span>
       </label>
     </div>
+  </div>
+
+  <div class="card hidden" id="previewCard">
+    <h2>Anteprima</h2>
+    <p class="summary" id="previewSummary"></p>
+    <div class="sheets" id="preview"></div>
+    <button type="button" class="more hidden" id="previewMore"></button>
   </div>
 
   <div class="card">
@@ -213,12 +250,17 @@
     <p class="summary" id="summary"></p>
     <div id="links"></div>
     <ol class="steps" id="steps"></ol>
-    <div class="sheets" id="sheets"></div>
   </div>
 
 </div>
 
 <script src="vendor/pdf-lib.min.js"></script>
+<!-- pdf.js serve solo all'anteprima: pdf-lib compone i PDF ma non sa disegnarli.
+     Caricando anche il worker qui dentro, pdf.js lavora nel thread principale e
+     non ha bisogno di avviare un Worker: è l'unico modo che funziona sempre,
+     anche aprendo il file con un doppio clic (origine file://). -->
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf.worker.min.js"></script>
 <script src="booklet.js"></script>
 <script>
 (function () {
@@ -229,6 +271,25 @@
   var statusEl = el('status'), bar = el('bar'), result = el('result');
   var chosen = null;
   var urls = []; // link temporanei da revocare a ogni nuova conversione
+
+  // Stato dell'anteprima: il PDF aperto con pdf.js e le miniature già disegnate.
+  var FACES_STEP = 8; // facciate mostrate subito; le altre dietro al pulsante
+  var THUMB_WIDTH = 240; // larghezza in pixel a cui si disegna una miniatura
+  var THUMB_CACHE = 400; // miniature tenute in memoria
+  var pv = {
+    doc: null,
+    sizes: [],       // dimensione vista di ogni pagina, in punti
+    thumbs: {},      // miniature pronte, per numero di pagina
+    thumbOrder: [],  // ordine di arrivo, per buttare via le più vecchie
+    faces: FACES_STEP,
+    token: 0,        // cambia a ogni nuovo file: annulla i lavori in corso
+    queue: Promise.resolve(),
+  };
+  var watcher = null; // IntersectionObserver: disegna solo ciò che si vede
+
+  function tick() {
+    return new Promise(function (r) { setTimeout(r, 0); });
+  }
 
   function setStatus(msg, isError) {
     statusEl.textContent = msg || '';
@@ -250,6 +311,7 @@
     go.disabled = false;
     setStatus('');
     result.classList.add('hidden');
+    openPreview(f);
   }
 
   drop.addEventListener('click', function () { fileInput.click(); });
@@ -260,6 +322,7 @@
     el('fileLine').classList.add('hidden');
     go.disabled = true;
     result.classList.add('hidden');
+    closePreview();
   });
 
   ['dragenter', 'dragover'].forEach(function (ev) {
@@ -295,37 +358,304 @@
     el('links').appendChild(a);
   }
 
-  function drawSheets(order) {
-    var box = el('sheets');
-    box.innerHTML = '';
-    var shown = order.slice(0, 8);
-    shown.forEach(function (face) {
-      var d = document.createElement('div');
-      d.className = 'sheet';
-      var pair = document.createElement('div');
-      pair.className = 'pair';
-      face.pages.forEach(function (n) {
-        var c = document.createElement('div');
-        c.className = 'pg' + (n ? '' : ' blank');
-        c.textContent = n || '';
-        pair.appendChild(c);
-      });
-      var cap = document.createElement('div');
-      cap.className = 'cap';
-      cap.textContent = 'foglio ' + (face.sheet + 1) + ' · ' +
-        (face.side === 'front' ? 'fronte' : 'retro');
-      d.appendChild(pair);
-      d.appendChild(cap);
-      box.appendChild(d);
-    });
-    if (order.length > shown.length) {
-      var more = document.createElement('div');
-      more.className = 'sheet';
-      more.style.alignSelf = 'center';
-      more.innerHTML = '<div class="cap">+ altre ' + (order.length - shown.length) + ' facciate</div>';
-      box.appendChild(more);
+  /* ---------------------------------------------------------------- *
+   * Anteprima: disegna ogni facciata in scala, con le miniature delle
+   * pagine al posto in cui finiranno davvero.
+   * ---------------------------------------------------------------- */
+
+  function totalPages() { return pv.sizes.length; }
+
+  /** Il riepilogo che compare sia sotto l'anteprima sia a lavoro finito. */
+  function recap(pages, sheets, padded, width, height) {
+    return '<b>' + pages + '</b> ' + (pages === 1 ? 'pagina' : 'pagine') +
+      ' → <b>' + sheets + '</b> ' + (sheets === 1 ? 'foglio' : 'fogli') +
+      ' da stampare fronte/retro' +
+      (padded ? ', con <b>' + padded + '</b> ' +
+        (padded === 1 ? 'pagina bianca aggiunta' : 'pagine bianche aggiunte') +
+        ' in fondo per arrivare a un multiplo di 4' : '') +
+      '. Foglio ' + Math.round(width / Booklet.MM) + '×' +
+      Math.round(height / Booklet.MM) + ' mm.';
+  }
+
+  function closePreview() {
+    pv.token++;
+    if (pv.doc) { pv.doc.destroy(); pv.doc = null; }
+    pv.sizes = [];
+    pv.thumbs = {};
+    pv.thumbOrder = [];
+    pv.faces = FACES_STEP;
+    if (watcher) watcher.disconnect();
+    el('preview').innerHTML = '';
+    el('previewCard').classList.add('hidden');
+    el('previewMore').classList.add('hidden');
+    syncRange();
+  }
+
+  async function openPreview(f) {
+    closePreview();
+    var token = pv.token;
+    el('previewCard').classList.remove('hidden');
+    el('previewSummary').textContent = 'Apertura del PDF…';
+
+    try {
+      var bytes = await readFile(f);
+      if (token !== pv.token) return;
+      var doc = await pdfjsLib.getDocument({ data: bytes, isEvalSupported: false }).promise;
+      if (token !== pv.token) { doc.destroy(); return; }
+      pv.doc = doc;
+
+      // Le dimensioni di ogni pagina servono a sapere quanto viene grande il
+      // foglio. Si leggono una volta sola, a blocchi, per non congelare la
+      // pagina sui documenti lunghi.
+      for (var i = 1; i <= doc.numPages; i++) {
+        var page = await doc.getPage(i);
+        if (token !== pv.token) return;
+        var v = page.getViewport({ scale: 1 });
+        pv.sizes.push({ w: v.width, h: v.height });
+        if (i % 25 === 0) {
+          el('previewSummary').textContent =
+            'Lettura del documento… ' + i + ' di ' + doc.numPages + ' pagine';
+          await tick();
+          if (token !== pv.token) return;
+        }
+      }
+
+      syncRange();
+      buildPreview();
+    } catch (err) {
+      if (token !== pv.token) return;
+      console.error(err);
+      el('preview').innerHTML = '';
+      el('previewSummary').textContent = /password/i.test(String(err && err.message || err))
+        ? 'PDF protetto da password: l’anteprima non è disponibile.'
+        : 'Anteprima non disponibile per questo PDF.';
     }
   }
+
+  /** Impostazioni correnti, nella forma che vuole Booklet. */
+  function settings() {
+    var num = function (id) {
+      var v = parseFloat(el(id).value);
+      return isNaN(v) ? 0 : v;
+    };
+    return {
+      paper: el('paper').value,
+      binding: el('binding').value,
+      flip: el('flip').value,
+      margin: num('margin'),
+      gutter: num('gutter'),
+      foldLine: el('foldLine').checked,
+    };
+  }
+
+  /** Intervallo di pagine scelto, già limitato a quelle che esistono. */
+  function range() {
+    var n = totalPages();
+    if (el('allPages').checked || !n) return { from: 1, to: n };
+    var f = parseInt(el('from').value, 10);
+    var t = parseInt(el('to').value, 10);
+    if (isNaN(f) || f < 1) f = 1;
+    if (isNaN(t) || t > n) t = n;
+    return { from: Math.min(f, n), to: t };
+  }
+
+  /** Tiene allineati i campi "dalla/alla pagina" alla casella "tutte le pagine". */
+  function syncRange() {
+    var n = totalPages();
+    var all = el('allPages').checked;
+    el('from').disabled = all;
+    el('to').disabled = all;
+    el('from').max = n || '';
+    el('to').max = n || '';
+    if (n) {
+      el('from').placeholder = '1';
+      el('to').placeholder = String(n);
+    }
+    el('allPagesHint').textContent = n
+      ? 'Il documento ne ha ' + n + (n === 1 ? ' in tutto.' : ' in tutto.')
+      : '';
+  }
+
+  function buildPreview() {
+    var box = el('preview');
+    var sum = el('previewSummary');
+    var more = el('previewMore');
+    if (watcher) watcher.disconnect();
+    box.innerHTML = '';
+    more.classList.add('hidden');
+    if (!pv.doc || !totalPages()) return;
+
+    var r = range();
+    var count = r.to - r.from + 1;
+    if (count < 1) {
+      sum.textContent = 'Intervallo di pagine non valido: la prima viene dopo l’ultima.';
+      return;
+    }
+
+    var opt = settings();
+    var maxW = 0;
+    var maxH = 0;
+    for (var i = r.from - 1; i < r.to; i++) {
+      maxW = Math.max(maxW, pv.sizes[i].w);
+      maxH = Math.max(maxH, pv.sizes[i].h);
+    }
+
+    var layout;
+    try {
+      layout = Booklet.sheetLayout(opt, maxW, maxH);
+    } catch (err) {
+      sum.textContent = String(err && err.message || err);
+      return;
+    }
+
+    var order = Booklet.sheetOrder(count);
+    sum.innerHTML = recap(count, order.length / 2,
+      Math.ceil(count / 4) * 4 - count, layout.width, layout.height) +
+      (count < totalPages() ? ' Solo le pagine dalla ' + r.from + ' alla ' + r.to + '.' : '');
+
+    var shown = Math.min(pv.faces, order.length);
+    for (var s = 0; s < shown; s++) {
+      box.appendChild(faceNode(order[s], layout, opt, r.from));
+    }
+    if (shown < order.length) {
+      more.textContent = 'Mostra le altre ' + (order.length - shown) + ' facciate';
+      more.classList.remove('hidden');
+    }
+  }
+
+  /** Una facciata: il foglio in scala con dentro le due pagine. */
+  function faceNode(face, layout, opt, firstPage) {
+    var fig = document.createElement('figure');
+    fig.className = 'face';
+
+    var paper = document.createElement('div');
+    paper.className = 'paper';
+    paper.style.paddingBottom = (layout.height / layout.width * 100) + '%';
+
+    var content = document.createElement('div');
+    content.className = 'content';
+    // Col ribaltamento sul lato lungo la stampante gira il foglio a testa in
+    // giù: ruotando tutto di 180° si vede il retro com'esce davvero.
+    if (opt.flip === 'long' && face.side === 'back') {
+      content.style.transform = 'rotate(180deg)';
+    }
+
+    var pages = opt.binding === 'right' ? [face.pages[1], face.pages[0]] : face.pages;
+    [layout.left, layout.right].forEach(function (rect, k) {
+      var slot = document.createElement('div');
+      slot.className = 'slot' + (pages[k] ? '' : ' blank');
+      slot.style.left = (rect.x / layout.width * 100) + '%';
+      slot.style.width = (rect.w / layout.width * 100) + '%';
+      slot.style.top = ((layout.height - rect.y - rect.h) / layout.height * 100) + '%';
+      slot.style.height = (rect.h / layout.height * 100) + '%';
+
+      var num = document.createElement('span');
+      num.className = 'num';
+      if (pages[k]) {
+        var pageNo = firstPage + pages[k] - 1; // numero nel documento di partenza
+        num.textContent = pageNo;
+        var img = document.createElement('img');
+        img.alt = 'pagina ' + pageNo;
+        slot.appendChild(img);
+        thumb(pageNo, img, slot);
+      } else {
+        num.textContent = 'bianca';
+      }
+      slot.appendChild(num);
+      content.appendChild(slot);
+    });
+
+    paper.appendChild(content);
+    if (opt.foldLine) {
+      var fold = document.createElement('div');
+      fold.className = 'fold';
+      fold.style.left = '50%';
+      paper.appendChild(fold);
+    }
+
+    var cap = document.createElement('figcaption');
+    cap.textContent = 'foglio ' + (face.sheet + 1) + ' · ' +
+      (face.side === 'front' ? 'fronte' : 'retro');
+    fig.appendChild(paper);
+    fig.appendChild(cap);
+    return fig;
+  }
+
+  /**
+   * Prenota la miniatura di una pagina. Si tiene d'occhio il riquadro e non
+   * l'immagine: l'immagine finché è vuota resta nascosta, e un elemento
+   * nascosto non entra mai nel campo visivo.
+   */
+  function thumb(pageNo, img, slot) {
+    if (pv.thumbs[pageNo]) { img.src = pv.thumbs[pageNo]; return; }
+    img.dataset.page = pageNo;
+    if (!window.IntersectionObserver) { drawThumb(img); return; }
+    if (!watcher) {
+      watcher = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          watcher.unobserve(e.target);
+          var waiting = e.target.querySelector('img');
+          if (waiting) drawThumb(waiting);
+        });
+      }, { rootMargin: '500px' });
+    }
+    watcher.observe(slot);
+  }
+
+  /** Disegna una miniatura. Una alla volta: pdf.js lavora nel thread principale. */
+  function drawThumb(img) {
+    var pageNo = parseInt(img.dataset.page, 10);
+    var token = pv.token;
+    pv.queue = pv.queue.then(async function () {
+      if (token !== pv.token || !img.parentNode) return;
+      if (pv.thumbs[pageNo]) { img.src = pv.thumbs[pageNo]; return; }
+      try {
+        var page = await pv.doc.getPage(pageNo);
+        if (token !== pv.token) return;
+        var base = page.getViewport({ scale: 1 });
+        var vp = page.getViewport({ scale: THUMB_WIDTH / base.width });
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(vp.width));
+        canvas.height = Math.max(1, Math.round(vp.height));
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        if (token !== pv.token) return;
+        var data = canvas.toDataURL('image/jpeg', 0.8);
+        pv.thumbs[pageNo] = data;
+        pv.thumbOrder.push(pageNo);
+        while (pv.thumbOrder.length > THUMB_CACHE) {
+          delete pv.thumbs[pv.thumbOrder.shift()];
+        }
+        img.src = data;
+      } catch (err) {
+        console.error(err); // una miniatura mancante non deve fermare il resto
+      }
+    });
+  }
+
+  // Le impostazioni cambiano il foglio, quindi l'anteprima si rifà da sola.
+  var rebuild = null;
+  function scheduleBuild() {
+    clearTimeout(rebuild);
+    rebuild = setTimeout(buildPreview, 150);
+  }
+  ['paper', 'flip', 'binding', 'margin', 'gutter', 'foldLine', 'from', 'to']
+    .forEach(function (id) {
+      el(id).addEventListener('change', scheduleBuild);
+      el(id).addEventListener('input', scheduleBuild);
+    });
+  el('allPages').addEventListener('change', function () {
+    syncRange();
+    scheduleBuild();
+  });
+  el('previewMore').addEventListener('click', function () {
+    pv.faces = Infinity;
+    buildPreview();
+  });
+  syncRange();
 
   function instructions(split, flip) {
     var s = el('steps');
@@ -358,36 +688,34 @@
     bar.value = 0;
     setStatus('Lettura del PDF…');
 
-    var num = function (id) {
-      var v = parseFloat(el(id).value);
-      return isNaN(v) ? undefined : v;
-    };
-
     try {
       var bytes = await readFile(chosen);
       var split = el('output').value === 'split';
-      var flip = el('flip').value;
+      var opt = settings();
+      var flip = opt.flip;
 
-      var res = await Booklet.convert(bytes, {
-        paper: el('paper').value,
-        binding: el('binding').value,
-        flip: flip,
-        margin: num('margin') || 0,
-        gutter: num('gutter') || 0,
-        foldLine: el('foldLine').checked,
-        split: split,
-        from: num('from'),
-        to: num('to'),
+      // Con "tutte le pagine" l'intervallo non si passa affatto. Senza
+      // anteprima (per esempio su un PDF protetto) valgono i campi così come
+      // sono stati scritti.
+      var all = el('allPages').checked;
+      var typed = function (id) {
+        var v = parseInt(el(id).value, 10);
+        return isNaN(v) ? undefined : v;
+      };
+      var r = range();
+      opt.split = split;
+      opt.from = all ? undefined : (totalPages() ? r.from : typed('from'));
+      opt.to = all ? undefined : (totalPages() ? r.to : typed('to'));
+
+      var res = await Booklet.convert(bytes, Object.assign(opt, {
         onProgress: function (done, total) {
           bar.value = Math.round((done / total) * 100);
           setStatus('Composizione facciata ' + done + ' di ' + total + '…');
         },
         // Restituisce il controllo al browser: la barra avanza davvero
         // anche su documenti di centinaia di pagine.
-        yield: function () {
-          return new Promise(function (r) { setTimeout(r, 0); });
-        },
-      });
+        yield: tick,
+      }));
 
       var base = chosen.name.replace(/\.pdf$/i, '');
       if (split) {
@@ -397,15 +725,10 @@
         download(res.front, base + '-opuscolo.pdf', 'Scarica l’opuscolo');
       }
 
-      el('summary').innerHTML =
-        '<b>' + res.pages + '</b> pagine → <b>' + res.sheets + '</b> fogli da stampare fronte/retro' +
-        (res.padded ? ', con <b>' + res.padded + '</b> pagin' + (res.padded === 1 ? 'a bianca aggiunta' : 'e bianche aggiunte') +
-          ' in fondo per arrivare a un multiplo di 4' : '') +
-        '. Foglio ' + Math.round(res.sheetSize.width / Booklet.MM) + '×' +
-        Math.round(res.sheetSize.height / Booklet.MM) + ' mm.';
+      el('summary').innerHTML = recap(res.pages, res.sheets, res.padded,
+        res.sheetSize.width, res.sheetSize.height);
 
       instructions(split, flip);
-      drawSheets(Booklet.sheetOrder(res.pages));
       result.classList.remove('hidden');
       setStatus('');
       bar.classList.add('hidden');
