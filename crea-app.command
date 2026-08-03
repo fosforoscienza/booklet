@@ -11,7 +11,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP="$DIR/Opuscolo.app"
 RES="$APP/Contents/Resources"
 
-for f in index.html booklet.js vendor/pdf-lib.min.js; do
+for f in index.html booklet.js vendor/pdf-lib.min.js vendor/pdf.min.js vendor/pdf.worker.min.js; do
   if [ ! -f "$DIR/$f" ]; then
     echo "Errore: manca $f. Tieni questo script insieme agli altri file." >&2
     exit 1

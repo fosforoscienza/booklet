@@ -53,6 +53,45 @@
     return out;
   }
 
+  /**
+   * Geometria di un foglio: dimensioni e i due riquadri dove finiscono le
+   * pagine. pageW/pageH sono le dimensioni viste della pagina sorgente più
+   * grande, in punti.
+   *
+   * Sta qui, e non dentro convert, perché anche l'anteprima deve poter
+   * disegnare esattamente lo stesso foglio senza rifare i conti a mano.
+   */
+  function sheetLayout(options, pageW, pageH) {
+    var opt = options || {};
+    var margin = (opt.margin || 0) * MM;
+    var gutter = (opt.gutter || 0) * MM;
+
+    var sheetW;
+    var sheetH;
+    if (opt.paper && opt.paper !== 'auto') {
+      var size = PAPER[opt.paper];
+      if (!size) throw new Error('Formato foglio sconosciuto: ' + opt.paper);
+      sheetW = Math.max(size[0], size[1]); // foglio orizzontale
+      sheetH = Math.min(size[0], size[1]);
+    } else {
+      sheetW = pageW * 2;
+      sheetH = pageH;
+    }
+
+    var halfW = sheetW / 2 - margin - gutter / 2;
+    var halfH = sheetH - margin * 2;
+    if (halfW <= 1 || halfH <= 1) {
+      throw new Error('Margine e piega centrale non lasciano spazio alle pagine.');
+    }
+
+    return {
+      width: sheetW,
+      height: sheetH,
+      left: { x: margin, y: margin, w: halfW, h: halfH },
+      right: { x: sheetW / 2 + gutter / 2, y: margin, w: halfW, h: halfH },
+    };
+  }
+
   /** Dimensione "vista" di una pagina, tenendo conto della sua rotazione. */
   function visualSize(box, rotation) {
     var turned = rotation === 90 || rotation === 270;
@@ -134,8 +173,6 @@
     var opt = options || {};
     var binding = opt.binding === 'right' ? 'right' : 'left';
     var flip = opt.flip === 'long' ? 'long' : 'short';
-    var margin = (opt.margin || 0) * MM;
-    var gutter = (opt.gutter || 0) * MM;
     var onProgress = opt.onProgress || function () {};
 
     var src = await PDFDocument.load(inputBytes, {
@@ -164,25 +201,11 @@
     var maxW = Math.max.apply(null, geom.map(function (g) { return g.vis.w; }));
     var maxH = Math.max.apply(null, geom.map(function (g) { return g.vis.h; }));
 
-    var sheetW;
-    var sheetH;
-    if (opt.paper && opt.paper !== 'auto') {
-      var size = PAPER[opt.paper];
-      if (!size) throw new Error('Formato foglio sconosciuto: ' + opt.paper);
-      sheetW = Math.max(size[0], size[1]); // foglio orizzontale
-      sheetH = Math.min(size[0], size[1]);
-    } else {
-      sheetW = maxW * 2;
-      sheetH = maxH;
-    }
-
-    var halfW = sheetW / 2 - margin - gutter / 2;
-    var halfH = sheetH - margin * 2;
-    if (halfW <= 1 || halfH <= 1) {
-      throw new Error('Margine e piega centrale non lasciano spazio alle pagine.');
-    }
-    var leftRect = { x: margin, y: margin, w: halfW, h: halfH };
-    var rightRect = { x: sheetW / 2 + gutter / 2, y: margin, w: halfW, h: halfH };
+    var layout = sheetLayout(opt, maxW, maxH);
+    var sheetW = layout.width;
+    var sheetH = layout.height;
+    var leftRect = layout.left;
+    var rightRect = layout.right;
 
     var order = sheetOrder(selected.length);
     var frontDoc = await PDFDocument.create();
@@ -241,5 +264,11 @@
     };
   }
 
-  return { convert: convert, sheetOrder: sheetOrder, PAPER: PAPER, MM: MM };
+  return {
+    convert: convert,
+    sheetOrder: sheetOrder,
+    sheetLayout: sheetLayout,
+    PAPER: PAPER,
+    MM: MM,
+  };
 });
