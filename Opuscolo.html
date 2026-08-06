@@ -180,15 +180,16 @@
       <div>
         <label class="field" for="paper">Formato del foglio da stampare</label>
         <select id="paper">
-          <option value="a4">A4 orizzontale (due A5 affiancate)</option>
-          <option value="auto" selected>Automatico (due pagine a grandezza originale)</option>
+          <option value="a4" selected>A4 orizzontale (due A5 affiancate)</option>
+          <option value="auto">Automatico (due pagine a grandezza originale)</option>
           <option value="a3">A3 orizzontale (due A4 affiancate)</option>
           <option value="letter">Letter orizzontale</option>
           <option value="legal">Legal orizzontale</option>
           <option value="tabloid">Tabloid orizzontale</option>
         </select>
-        <div class="hint">In automatico il foglio è largo il doppio della pagina originale:
-          scegli un formato fisso se la tua stampante non lo accetta.</div>
+        <div class="hint">Di suo esce un A4 orizzontale, che ogni stampante accetta: le pagine
+          diventano A5. Con <i>Automatico</i> restano a grandezza originale, ma il foglio
+          viene largo il doppio (due A4 → un A3).</div>
       </div>
       <div>
         <label class="field" for="flip">Fronte/retro della stampante</label>

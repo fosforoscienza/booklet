@@ -86,7 +86,7 @@ riordinarla, poi stampi i retri.
 
 | Impostazione | A cosa serve |
 | --- | --- |
-| **Formato del foglio** | `Automatico` fa un foglio largo il doppio della pagina originale (due A4 → un A3). Scegli `A4 orizzontale` se stampi su A4: le pagine vengono rimpicciolite a A5. |
+| **Formato del foglio** | Di suo `A4 orizzontale`: il libretto esce su A4 e le pagine diventano A5, così stampa ovunque. `Automatico` tiene le pagine a grandezza originale su un foglio largo il doppio (due A4 → un A3), per chi ha la stampante adatta. |
 | **Fronte/retro della stampante** | Lato corto o lungo, a seconda di come la tua stampante gira il foglio. |
 | **Verso di lettura** | Da destra a sinistra per documenti in arabo, ebraico o manga. |
 | **File prodotti** | Un file unico, oppure due file separati per la stampa manuale. |
